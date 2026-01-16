@@ -2,11 +2,12 @@
 import { readFileSync } from "node:fs";
 import { inferTlSchemaFromJson } from "./tl/infer.js";
 import { renderSchema } from "./tl/render.js";
+import type { InferOptions } from "./tl/infer.js";
 
 interface Args {
   file?: string;
-  type?: string;
-  constructor?: string;
+  rootTypeName?: string;
+  rootConstructorName?: string;
   noNested?: boolean;
   noId?: boolean;
   help?: boolean;
@@ -16,11 +17,18 @@ function parseArgs(argv: string[]): Args {
   const out: Args = {};
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
+    if (!a) continue;
     if (a === "-h" || a === "--help") out.help = true;
-    else if (a === "-f" || a === "--file") out.file = argv[++i];
-    else if (a === "-t" || a === "--type") out.type = argv[++i];
-    else if (a === "-c" || a === "--constructor") out.constructor = argv[++i];
-    else if (a === "--no-nested") out.noNested = true;
+    else if (a === "-f" || a === "--file") {
+      const v = argv[++i];
+      if (v !== undefined) out.file = v;
+    } else if (a === "-t" || a === "--type") {
+      const v = argv[++i];
+      if (v !== undefined) out.rootTypeName = v;
+    } else if (a === "-c" || a === "--constructor") {
+      const v = argv[++i];
+      if (v !== undefined) out.rootConstructorName = v;
+    } else if (a === "--no-nested") out.noNested = true;
     else if (a === "--no-id") out.noId = true;
     else if (!a.startsWith("-") && !out.file) out.file = a;
   }
@@ -60,11 +68,12 @@ function main() {
   const jsonText = readFileSync(args.file, "utf8");
   const value = JSON.parse(jsonText) as unknown;
 
-  const schema = inferTlSchemaFromJson(value, {
-    rootTypeName: args.type,
-    rootConstructorName: args.constructor,
-    emitNestedTypes: !args.noNested,
-  });
+  const inferOpts: InferOptions = { emitNestedTypes: !args.noNested };
+  if (args.rootTypeName !== undefined) inferOpts.rootTypeName = args.rootTypeName;
+  if (args.rootConstructorName !== undefined)
+    inferOpts.rootConstructorName = args.rootConstructorName;
+
+  const schema = inferTlSchemaFromJson(value, inferOpts);
   const out = renderSchema(schema, { includeConstructorId: !args.noId });
   process.stdout.write(out + "\n");
 }

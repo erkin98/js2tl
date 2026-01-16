@@ -16,7 +16,8 @@ export function crc32(input: string): number {
   let crc = 0xffffffff;
   for (let i = 0; i < input.length; i++) {
     const b = input.charCodeAt(i) & 0xff;
-    crc = TABLE[(crc ^ b) & 0xff] ^ (crc >>> 8);
+    const t = TABLE[(crc ^ b) & 0xff]!;
+    crc = t ^ (crc >>> 8);
   }
   return (crc ^ 0xffffffff) >>> 0;
 }
